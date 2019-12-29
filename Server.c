@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
   //init the server internet address to 0.0.0.0 to anyone try to get this ip, and casting from regular address to network
   s_in.sin_addr.s_addr = htonl(INADDR_ANY);
   //init the server port and casting from regular adrress ip to network address
-  s_in.sin_port = htons((u_short)0x3333);
+  s_in.sin_port = htons((u_short)0x3332);
   printsin( &s_in, "RECV_UDP", "Local socket is:"); 
   
   
