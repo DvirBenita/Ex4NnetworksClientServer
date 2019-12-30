@@ -10,11 +10,17 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#define SIM_LENGTH 10 
-#define IP_ADDRESS "?????" 
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#define SIM_LENGTH 10  
 #define PORT 1337 
 
-int main(void)
+int main(int argc, char* argv[])
 { 
   int sock; 
   struct sockaddr_in cli_name; 
@@ -31,11 +37,27 @@ int main(void)
       exit(1);
     }
       
+   struct addrinfo* res;
+  char* hostname;
+  char* hostaddr;
+  struct sockaddr_in* saddr;
+  
+  if (argc != 2) {
+    perror("Usage: hostnamelookup <hostname>\n");
+    exit(1);
+  }
 
+  hostname = argv[1];
+  
+  if (0 != getaddrinfo(hostname, "1337", NULL, &res)) {
+    fprintf(stderr, "Error in resolving hostname %s\n", hostname);
+    exit(1);
+  }
+  
+  saddr = (struct sockaddr_in*)res->ai_addr;
+  hostaddr = inet_ntoa(saddr->sin_addr);
   memset((char *)&cli_name,0, sizeof(cli_name)); 
-  cli_name.sin_family = AF_INET; 
-  cli_name.sin_addr.s_addr = inet_addr(IP_ADDRESS); 
-  cli_name.sin_port = htons(PORT);
+  cli_name=*saddr;
 
 
   if (connect(sock, (struct sockaddr *)&cli_name, sizeof(cli_name)) < 0)
