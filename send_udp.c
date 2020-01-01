@@ -12,6 +12,7 @@
 #include <strings.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdio.h>
 int main(int argc, char *argv[])
 {
   int socket_fd;
