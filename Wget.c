@@ -1,82 +1,95 @@
-#include <stdio.h>
 #include <sys/types.h>
+#include <unistd.h>          
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <signal.h>    
 #include <sys/socket.h>
+#include <sys/un.h>
+#include <netinet/in.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 
-int
-main()
-{
- char *hostname = "google.com";
- char *service = "http";
- struct addrinfo hints, *res0, *res;
- int err;
- int sock;
+#define SIM_LENGTH 10 
+#define PORT 80 
+#define MAXIMUM  1024
 
- memset(&hints, 0, sizeof(hints));
- hints.ai_socktype = SOCK_STREAM;
- hints.ai_family = PF_UNSPEC;
+int main(int argc, char* argv[])
+{ 
+  struct sockaddr_in client_name; 
+  int sock, more_read;
+  char hostn[100];
+  char route[100];
+  char* url;
+  char* prefix="http://";
+  struct addrinfo* res;
+  struct sockaddr_in* saddr;
+  char buff[MAXIMUM];
+int port;
+  
+  if (argc != 2) {
+    perror(" hostnlookup <hostn>\n");
+    exit(1);
+  }
 
- if ((err = getaddrinfo(hostname, service, &hints, &res0)) != 0) {
-   printf("error %d\n", err);
-   return 1;
- }
+  url = argv[1];
 
-   sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
- 
+  // check if url has a "http://" in the beggining
+  if (strncmp(url, prefix, 7) != 0) {
+    printf("\nno http:// found\n");
+    exit(1);
+  }
 
+  // cut the http:// from the hostn
+ sscanf(url, "http://%99[^/]/%99[^\n]", hostn, route);
 
-   if (connect(sock, res->ai_addr, res->ai_addrlen) != 0) {
-     close(sock);
+  // check if its a valid hostn
+  if (0 != getaddrinfo(hostn, NULL, NULL, &res)) {
+    fprintf(stderr, "Error in resolving hostn %s\n", hostn);
+    exit(1);
+  }
 
-   }
-   char buffer[256]={0};
-   char httprequest[256] = "GET google.com HTTP/1.0 \n Host:";
-   // write(sock, httprequest, strlen(httprequest));
-char sendline[256], recvline[256];
-char* ptr;
+  printf("Client is alive and establishing socket connection.\n");
+  
+  
+  // Create a new socket of type ipv4 and TCP, without stating the protocol and returning its ptr
+  sock = socket(AF_INET, SOCK_STREAM, 0);
+  if (sock < 0)
+    { perror ("Error create socket");
+      close(sock);
+      exit(1);
+    }
 
-size_t n;
+  saddr = (struct sockaddr_in*)res->ai_addr;
 
-/// Form request
-snprintf(sendline, 256, 
-     "GET %s HTTP/1.0\r\n"  // POST or GET, both tested and works. Both HTTP 1.0 HTTP 1.1 works, but sometimes 
-     "Host: %s\r\n"     // but sometimes HTTP 1.0 works better in localhost type
-     "Content-type: application/x-www-form-urlencoded\r\n"
-     "Content-length: %d\r\n\r\n"
-     "%s\r\n",  (unsigned int)strlen(poststr), poststr);
+  
+  bzero(&client_name, sizeof(client_name)); // set all values in the buff to zero
+  client_name.sin_family = AF_INET;  // family is IPv4.
+  client_name.sin_addr.s_addr = inet_addr(inet_ntoa(saddr->sin_addr)); 
+  client_name.sin_port = htons(PORT);
 
-/// Write the request
-if (write(sock, sendline, strlen(sendline))>= 0) 
-{
-    /// Read the response
-    while ((n = read(sock, recvline, 256)) > 0) 
+    // ---Connect to server---
+    if (connect(sock, (struct sockaddr *)&client_name, sizeof(client_name)) < 0)
+    { perror ("Error establishing communications");
+      close(sock);
+      exit(1);
+    }
+    
+    sprintf(buff, "GET %s%s HTTP/1.0\n\n", hostn, route);
+    send(sock, buff, strlen(buff), 0);
+
+    do
     {
-        recvline[n] = '\0';
+        bzero(buff, sizeof(buff));
+        more_read = recv(sock, buff, sizeof(buff), 0);
+        if ( more_read > 0 )
+            printf("%s", buff);
+    }
+    while ( more_read > 0 );
 
-        if(fputs(recvline, stdout) == EOF)
-        {
-            printf("fputs() error\n");
-        }
+  printf("Exiting now.\n");
 
-        /// Remove the trailing chars
-        ptr = strstr(recvline, "\r\n\r\n");
+  close(sock); 
+  exit(0);
 
-       
-    }          
-}
-   /////////////////// 
-   
-
- if (res == NULL) {
-   /* could not create a valid connection */
-   printf("failed\n");
-
-   return 1;
- }
-
- freeaddrinfo(res0);
-
- /* Write transmission code using sock here... */
-
- return 0;
 }
